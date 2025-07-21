@@ -151,7 +151,7 @@ export function SettingsDropdown() {
           <DropdownMenuSeparator />
 
           {/* Dark Mode Section */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-2">
             <Label htmlFor="dark-mode" className="text-sm font-medium">
               Dark Mode
             </Label>
@@ -160,6 +160,18 @@ export function SettingsDropdown() {
               checked={darkMode}
               onCheckedChange={handleDarkModeToggle}
             />
+          </div>
+
+          {/* GitHub Section */}
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open("https://github.com/ammaarreshi/openjourney", "_blank")}
+              className="w-full text-sm"
+            >
+              Fork and remix on GitHub
+            </Button>
           </div>
         </div>
       </DropdownMenuContent>
