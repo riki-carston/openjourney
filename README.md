@@ -4,7 +4,7 @@ A high-fidelity, open-source clone of the MidJourney web interface built with Ne
 
 OR extend and bring your favorite models to the same experience.
 
-![OpenJourney Interface](app-example.png)
+![openjourney-ui](https://github.com/user-attachments/assets/392da5a8-d121-4f71-83f7-dfca20a267af)
 
 ## ✨ Features
 
