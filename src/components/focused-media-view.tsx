@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Download, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
@@ -14,6 +14,7 @@ interface MediaItem {
   prompt: string;
   timestamp: Date;
   sourceImage?: string;
+  imageBytes?: string;
 }
 
 interface FocusedMediaViewProps {
@@ -22,6 +23,7 @@ interface FocusedMediaViewProps {
   mediaItems: MediaItem[];
   initialIndex: number;
   onImageToVideo?: (imageUrl: string, imageBytes: string, prompt: string) => void;
+  onImageImprove?: (imageUrl: string, imageBytes: string, originalPrompt: string) => void;
 }
 
 export function FocusedMediaView({
@@ -29,7 +31,8 @@ export function FocusedMediaView({
   onClose,
   mediaItems,
   initialIndex,
-  onImageToVideo
+  onImageToVideo,
+  onImageImprove
 }: FocusedMediaViewProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const filmStripRef = useRef<HTMLDivElement>(null);
@@ -240,6 +243,20 @@ export function FocusedMediaView({
                 Download {currentItem.type}
               </Button>
 
+              {currentItem.type === 'image' && onImageImprove && currentItem.imageBytes && (
+                <Button
+                  onClick={() => {
+                    onImageImprove(currentItem.url, currentItem.imageBytes!, currentItem.prompt);
+                    onClose();
+                  }}
+                  className="w-full justify-start"
+                  variant="outline"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Improve Image
+                </Button>
+              )}
+
               {currentItem.type === 'image' && onImageToVideo && (
                 <Button
                   onClick={() => {
@@ -431,6 +448,20 @@ export function FocusedMediaView({
                     <Download className="w-4 h-4 mr-2" />
                     Download {currentItem.type}
                   </Button>
+
+                  {currentItem.type === 'image' && onImageImprove && currentItem.imageBytes && (
+                    <Button
+                      onClick={() => {
+                        onImageImprove(currentItem.url, currentItem.imageBytes!, currentItem.prompt);
+                        onClose();
+                      }}
+                      className="w-full justify-start"
+                      variant="outline"
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Improve Image
+                    </Button>
+                  )}
 
                   {currentItem.type === 'image' && onImageToVideo && (
                     <Button

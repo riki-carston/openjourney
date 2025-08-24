@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ImageIcon, VideoIcon } from "lucide-react";
-import Image from "next/image";
 import { SettingsDropdown } from "@/components/settings-dropdown";
+import Image from "next/image";
 
 interface PromptBarProps {
   onGenerate?: (type: "image" | "video", prompt: string) => void;
@@ -48,14 +48,15 @@ export function PromptBar({ onGenerate }: PromptBarProps) {
           {/* Main prompt input */}
           <div className="flex flex-col sm:flex-row gap-4 items-center">
             {/* OpenJourney Logo */}
-            <div className="flex-shrink-0">
-              <Image
-                src="/openjourney-logo.svg"
-                alt="OpenJourney"
-                width={140}
-                height={30}
-                className="h-6 sm:h-8 w-auto dark:invert"
+            <div className="flex-shrink-0 flex items-center gap-2">
+              <Image 
+                src="/images/logo.png" 
+                alt="Wealthie Images Logo" 
+                width={32} 
+                height={32}
+                className="rounded-full"
               />
+              <h2>Wealthie Images</h2>
             </div>
             
             <div className="relative flex-1 w-full">
@@ -87,7 +88,9 @@ export function PromptBar({ onGenerate }: PromptBarProps) {
                   <VideoIcon className="w-4 h-4 mr-1" />
                   Video
                 </Button>
+                {/*
                 <SettingsDropdown />
+                */}
               </div>
             </div>
           </div>

@@ -6,6 +6,7 @@ import { VideoGrid } from "@/components/video-grid";
 import { LoadingGrid } from "@/components/loading-grid";
 import { ApiKeyDialog } from "@/components/api-key-dialog";
 import { FocusedMediaView } from "@/components/focused-media-view";
+import { ImproveImageModal } from "@/components/improve-image-modal";
 import { motion } from "framer-motion";
 
 interface ImageGeneration {
@@ -86,9 +87,16 @@ export function ContentGrid({
       prompt: string;
       timestamp: Date;
       sourceImage?: string;
+      imageBytes?: string;
     }>;
     initialIndex: number;
   }>({ isOpen: false, mediaItems: [], initialIndex: 0 });
+  const [improveImageModal, setImproveImageModal] = useState<{
+    isOpen: boolean;
+    imageUrl: string;
+    imageBytes: string;
+    originalPrompt: string;
+  }>({ isOpen: false, imageUrl: '', imageBytes: '', originalPrompt: '' });
 
   // Initialize with sample data after mount to avoid hydration issues
   useEffect(() => {
@@ -104,6 +112,7 @@ export function ContentGrid({
       prompt: string;
       timestamp: Date;
       sourceImage?: string;
+      imageBytes?: string;
     }> = [];
 
     generations.forEach((generation) => {
@@ -117,6 +126,7 @@ export function ContentGrid({
               url: image.url,
               prompt: generation.prompt,
               timestamp: generation.timestamp,
+              imageBytes: image.imageBytes,
             });
           });
         } else if ('videos' in generation) {
@@ -185,6 +195,7 @@ export function ContentGrid({
 
     try {
       if (type === "image") {
+        
         // Call Imagen API
         const response = await fetch('/api/generate-images', {
           method: 'POST',
@@ -193,6 +204,7 @@ export function ContentGrid({
           },
           body: JSON.stringify({ prompt, apiKey: userApiKey }),
         });
+
 
         const data = await response.json();
 
@@ -212,6 +224,11 @@ export function ContentGrid({
             gen.id === loadingGeneration.id ? completedGeneration : gen
           ));
         } else {
+          console.error('❌ Image generation failed:', {
+            error: data.error,
+            details: data.details,
+            fullResponse: data
+          });
           throw new Error(data.error || 'Image generation failed');
         }
       } else {
@@ -243,7 +260,15 @@ export function ContentGrid({
         }
       }
     } catch (error) {
-      console.error('Generation failed:', error);
+      console.error('💥 Generation failed:', {
+        error: error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        type: type,
+        promptLength: prompt.length,
+        hasUserApiKey: !!userApiKey
+      });
+      
       // Remove the loading generation on error
       setGenerations(prev => prev.filter(gen => gen.id !== loadingGeneration.id));
       
@@ -319,6 +344,91 @@ export function ContentGrid({
     }
   };
 
+  const handleOpenImproveModal = (imageUrl: string, imageBytes: string, originalPrompt: string) => {
+    setImproveImageModal({
+      isOpen: true,
+      imageUrl,
+      imageBytes,
+      originalPrompt
+    });
+  };
+
+  const handleImproveImage = async (improvementPrompt: string) => {
+    // Get user's API key from localStorage
+    const userApiKey = localStorage.getItem("gemini_api_key");
+    
+    const loadingGeneration: LoadingGeneration = {
+      id: `improve-loading-${Date.now()}`,
+      prompt: `${improveImageModal.originalPrompt} - improved: ${improvementPrompt}`,
+      type: "image",
+      timestamp: new Date(),
+      isLoading: true
+    };
+
+    // Add new loading generation at the top
+    setGenerations(prev => [loadingGeneration, ...prev]);
+
+    try {
+      const response = await fetch('/api/improve-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          originalPrompt: improveImageModal.originalPrompt,
+          improvementPrompt,
+          imageBytes: improveImageModal.imageBytes,
+          apiKey: userApiKey
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const completedGeneration: ImageGeneration = {
+          id: loadingGeneration.id,
+          prompt: data.enhancedPrompt || loadingGeneration.prompt,
+          images: data.images.map((img: { url: string; imageBytes: string }) => ({
+            url: img.url,
+            imageBytes: img.imageBytes
+          })),
+          timestamp: loadingGeneration.timestamp,
+          isLoading: false
+        };
+
+        setGenerations(prev => prev.map(gen => 
+          gen.id === loadingGeneration.id ? completedGeneration : gen
+        ));
+      } else {
+        console.error('❌ Image improvement failed:', {
+          error: data.error,
+          details: data.details,
+          fullResponse: data
+        });
+        throw new Error(data.error || 'Image improvement failed');
+      }
+    } catch (error) {
+      console.error('💥 Image improvement failed:', {
+        error: error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        improvementPromptLength: improvementPrompt.length,
+        hasUserApiKey: !!userApiKey
+      });
+      
+      // Remove the loading generation on error
+      setGenerations(prev => prev.filter(gen => gen.id !== loadingGeneration.id));
+      
+      // Show user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : 'Image improvement failed';
+      if (errorMessage.includes('API key')) {
+        setShowApiKeyDialog(true);
+      } else {
+        alert(`Image improvement failed: ${errorMessage}`);
+      }
+    }
+  };
+
   // Use useEffect to avoid setState during render
   useEffect(() => {
     if (onNewGeneration) {
@@ -350,6 +460,7 @@ export function ContentGrid({
               generation={generation}
               onImageToVideo={handleImageToVideo}
               onViewFullscreen={openFocusedView}
+              onImageImprove={handleOpenImproveModal}
             />
           ) : (
             <VideoGrid 
@@ -374,7 +485,6 @@ export function ContentGrid({
         open={showApiKeyDialog}
         onOpenChange={setShowApiKeyDialog}
         onApiKeySaved={() => {
-          console.log('Google Gemini API key saved successfully');
           // Trigger a custom event to notify settings dropdown to refresh
           window.dispatchEvent(new CustomEvent('apiKeyUpdated'));
         }}
@@ -386,6 +496,15 @@ export function ContentGrid({
         mediaItems={focusedView.mediaItems}
         initialIndex={focusedView.initialIndex}
         onImageToVideo={handleImageToVideo}
+        onImageImprove={handleOpenImproveModal}
+      />
+
+      <ImproveImageModal
+        open={improveImageModal.isOpen}
+        onOpenChange={(open) => setImproveImageModal(prev => ({ ...prev, isOpen: open }))}
+        imageUrl={improveImageModal.imageUrl}
+        originalPrompt={improveImageModal.originalPrompt}
+        onImproveImage={handleImproveImage}
       />
     </>
   );

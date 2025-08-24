@@ -32,13 +32,15 @@ interface ImageGridProps {
   generation: ImageGeneration;
   onImageToVideo?: (imageUrl: string, imageBytes: string, prompt: string) => void;
   onViewFullscreen?: (generationId: string, imageIndex: number) => void;
+  onImageImprove?: (imageUrl: string, imageBytes: string, originalPrompt: string) => void;
 }
 
-export function ImageGrid({ generation, onImageToVideo, onViewFullscreen }: ImageGridProps) {
+export function ImageGrid({ generation, onImageToVideo, onViewFullscreen, onImageImprove }: ImageGridProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [convertingToVideo, setConvertingToVideo] = useState<number | null>(null);
+  const [improvingImage, setImprovingImage] = useState<number | null>(null);
 
   const formatTimeAgo = (date: Date) => {
     const now = new Date();
@@ -85,6 +87,25 @@ export function ImageGrid({ generation, onImageToVideo, onViewFullscreen }: Imag
       console.error('Video conversion failed:', error);
     } finally {
       setConvertingToVideo(null);
+    }
+  };
+
+  const handleImproveImage = async (imageData: { url: string; imageBytes?: string; isSample?: boolean }, index: number) => {
+    if (!onImageImprove || !imageData.imageBytes || imageData.isSample) {
+      console.error('Image improvement not available for sample images');
+      return;
+    }
+
+    try {
+      setImprovingImage(index);
+      
+      // Trigger the parent handler to open improve modal
+      onImageImprove(imageData.url, imageData.imageBytes, generation.prompt);
+      
+    } catch (error) {
+      console.error('Image improvement failed:', error);
+    } finally {
+      setImprovingImage(null);
     }
   };
 
@@ -175,38 +196,72 @@ export function ImageGrid({ generation, onImageToVideo, onViewFullscreen }: Imag
                             Expand
                           </Button>
                         </div>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="w-full">
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleConvertToVideo(imageData, index);
-                                  }}
-                                  disabled={convertingToVideo === index || !imageData.imageBytes || imageData.isSample}
-                                  className="h-6 sm:h-7 px-2 sm:px-3 text-xs font-medium w-full"
-                                >
-                                  {convertingToVideo === index ? 'Converting...' : 'Animate with Veo 2'}
-                                </Button>
-                              </span>
-                            </TooltipTrigger>
-                            {(convertingToVideo === index || !imageData.imageBytes || imageData.isSample) && (
-                              <TooltipContent side="bottom">
-                                <p>
-                                  {convertingToVideo === index 
-                                    ? 'Currently converting to video...'
-                                    : imageData.isSample 
-                                    ? "We can't animate sample images, but generate your own to try it out"
-                                    : "Image data not available for animation"
-                                  }
-                                </p>
-                              </TooltipContent>
-                            )}
-                          </Tooltip>
-                        </TooltipProvider>
+                        <div className="flex gap-1 sm:gap-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="flex-1">
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleImproveImage(imageData, index);
+                                    }}
+                                    disabled={improvingImage === index || !imageData.imageBytes || imageData.isSample}
+                                    className="h-6 sm:h-7 px-2 sm:px-3 text-xs font-medium w-full"
+                                  >
+                                    {improvingImage === index ? 'Improving...' : 'Improve'}
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {(improvingImage === index || !imageData.imageBytes || imageData.isSample) && (
+                                <TooltipContent side="bottom">
+                                  <p>
+                                    {improvingImage === index 
+                                      ? 'Currently improving image...'
+                                      : imageData.isSample 
+                                      ? "We can't improve sample images, but generate your own to try it out"
+                                      : "Image data not available for improvement"
+                                    }
+                                  </p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="flex-1">
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleConvertToVideo(imageData, index);
+                                    }}
+                                    disabled={convertingToVideo === index || !imageData.imageBytes || imageData.isSample}
+                                    className="h-6 sm:h-7 px-2 sm:px-3 text-xs font-medium w-full"
+                                  >
+                                    {convertingToVideo === index ? 'Converting...' : 'Animate'}
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              {(convertingToVideo === index || !imageData.imageBytes || imageData.isSample) && (
+                                <TooltipContent side="bottom">
+                                  <p>
+                                    {convertingToVideo === index 
+                                      ? 'Currently converting to video...'
+                                      : imageData.isSample 
+                                      ? "We can't animate sample images, but generate your own to try it out"
+                                      : "Image data not available for animation"
+                                    }
+                                  </p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                       </div>
                     </motion.div>
                   </motion.div>
