@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    const err = error as any;
+    const err = error as Error;
     console.error("💥 Error generating images:", {
       message: err?.message,
       stack: err?.stack,

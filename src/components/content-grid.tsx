@@ -41,33 +41,8 @@ interface LoadingGeneration {
 
 type Generation = ImageGeneration | VideoGeneration | LoadingGeneration;
 
-// Sample data for demonstration with real generated content
-const createSampleGenerations = (): Generation[] => [
-  // Video generation (most recent)
-  {
-    id: "sample-video-1",
-    prompt: "a race car formula 1 style in a highspeed track",
-    videos: [
-      "/sample-videos/video-1.mp4",
-      "/sample-videos/video-2.mp4"
-    ],
-    timestamp: new Date(Date.now() - 1000 * 60 * 2), // 2 minutes ago
-    isLoading: false
-  } as VideoGeneration,
-  // Image generation 
-  {
-    id: "sample-image-1",
-    prompt: "A majestic ice warrior in blue armor standing in a snowy landscape",
-    images: [
-      { url: "/sample-images/generated-image-1.png", isSample: true },
-      { url: "/sample-images/generated-image-2.png", isSample: true }, 
-      { url: "/sample-images/generated-image-3.png", isSample: true },
-      { url: "/sample-images/generated-image-4.png", isSample: true }
-    ],
-    timestamp: new Date(Date.now() - 1000 * 60 * 5), // 5 minutes ago
-    isLoading: false
-  } as ImageGeneration
-];
+// Sample data for demonstration - empty for now
+const createSampleGenerations = (): Generation[] => [];
 
 export function ContentGrid({ 
   onNewGeneration,

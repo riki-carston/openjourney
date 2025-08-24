@@ -284,7 +284,6 @@ export function FocusedMediaView({
               }}
             >
               {mediaItems.map((item, index) => {
-                const distance = Math.abs(index - currentIndex);
                 const isCurrent = index === currentIndex;
 
                 const scale = isCurrent ? 1.15 : 1;
@@ -521,7 +520,6 @@ export function FocusedMediaView({
                 }}
               >
                 {mediaItems.map((item, index) => {
-                  const distance = Math.abs(index - currentIndex);
                   const isCurrent = index === currentIndex;
 
                   const scale = isCurrent ? 1.2 : 1;

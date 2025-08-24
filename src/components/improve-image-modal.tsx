@@ -58,7 +58,7 @@ export function ImproveImageModal({
             Improve Image
           </DialogTitle>
           <DialogDescription className="text-center">
-            Describe how you'd like to improve this image. Be specific about what you want changed.
+            Describe how you&apos;d like to improve this image. Be specific about what you want changed.
           </DialogDescription>
         </DialogHeader>
 
