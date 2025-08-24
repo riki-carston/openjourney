@@ -448,7 +448,7 @@ export function ContentGrid({
       
       {generations.length === 0 && (
         <div className="text-center py-16">
-          <h3 className="text-lg font-medium mb-2">Ready to create something amazing?</h3>
+          <h3 className="text-lg font-medium mb-2">Sean - create something good</h3>
           <p className="text-muted-foreground">
             Use the prompt bar above to generate your first image or video.
           </p>
