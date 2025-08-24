@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Openjourney",
+  title: "Wealthie Images",
   description: "An open source playground for your favorite media models inspired by the Midjourney UI",
   icons: {
     icon: "/favicon.png",
