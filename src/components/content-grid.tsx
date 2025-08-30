@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ImageGrid } from "@/components/image-grid";
 import { VideoGrid } from "@/components/video-grid";
 import { LoadingGrid } from "@/components/loading-grid";
@@ -8,6 +8,7 @@ import { ApiKeyDialog } from "@/components/api-key-dialog";
 import { FocusedMediaView } from "@/components/focused-media-view";
 import { ImproveImageModal } from "@/components/improve-image-modal";
 import { motion } from "framer-motion";
+import type { ProviderSettings } from "@/components/settings-dropdown";
 
 interface ImageGeneration {
   id: string;
@@ -46,12 +47,18 @@ const createSampleGenerations = (): Generation[] => [];
 
 export function ContentGrid({ 
   onNewGeneration,
-  onImageToVideo 
+  onImageToVideo,
+  onProviderSettingsChange 
 }: { 
-  onNewGeneration?: (handler: (type: "image" | "video", prompt: string) => void) => void;
+  onNewGeneration?: (handler: (type: "image" | "video", prompt: string, imageBytes?: string) => void) => void;
   onImageToVideo?: (handler: (imageUrl: string, imageBytes: string, prompt: string) => void) => void;
+  onProviderSettingsChange?: (handler: (settings: ProviderSettings) => void) => void;
 }) {
   const [generations, setGenerations] = useState<Generation[]>([]);
+  const [providerSettings, setProviderSettings] = useState<ProviderSettings>({
+    provider: 'google',
+    fluxModel: 'fal-ai/flux/dev'
+  });
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
   const [focusedView, setFocusedView] = useState<{
     isOpen: boolean;
@@ -76,7 +83,29 @@ export function ContentGrid({
   // Initialize with sample data after mount to avoid hydration issues
   useEffect(() => {
     setGenerations(createSampleGenerations());
+    
+    // Load provider settings from localStorage
+    const savedProvider = localStorage.getItem("openjourney-provider") as 'google' | 'fal';
+    const savedFluxModel = localStorage.getItem("openjourney-flux-model");
+    if (savedProvider || savedFluxModel) {
+      setProviderSettings({
+        provider: savedProvider || 'google',
+        fluxModel: savedFluxModel || 'fal-ai/flux/dev'
+      });
+    }
   }, []);
+
+  // Handle provider settings changes
+  const handleProviderSettingsChange = (settings: ProviderSettings) => {
+    setProviderSettings(settings);
+  };
+
+  // Use useEffect to notify parent component about provider changes
+  useEffect(() => {
+    if (onProviderSettingsChange) {
+      onProviderSettingsChange(handleProviderSettingsChange);
+    }
+  }, [onProviderSettingsChange]);
 
   // Helper function to gather all media items from generations
   const getAllMediaItems = () => {
@@ -153,9 +182,22 @@ export function ContentGrid({
     });
   };
 
-  const handleNewGeneration = async (type: "image" | "video", prompt: string) => {
-    // Get user's API key from localStorage
-    const userApiKey = localStorage.getItem("gemini_api_key");
+  const handleNewGeneration = useCallback(async (type: "image" | "video", prompt: string, imageBytes?: string) => {
+    console.log('🎯 ContentGrid handleNewGeneration called with:', { 
+      type, 
+      prompt, 
+      hasImageBytes: !!imageBytes,
+      imageBytesLength: imageBytes?.length,
+      promptTrimmed: prompt.trim(),
+      promptTrimmedLength: prompt.trim().length,
+      provider: providerSettings.provider,
+      fluxModel: providerSettings.fluxModel
+    });
+
+    // Get appropriate API key from localStorage based on provider
+    const userApiKey = providerSettings.provider === 'google' 
+      ? localStorage.getItem("gemini_api_key")
+      : localStorage.getItem("fal_api_key");
     
     const loadingGeneration: LoadingGeneration = {
       id: `loading-${Date.now()}`,
@@ -170,41 +212,153 @@ export function ContentGrid({
 
     try {
       if (type === "image") {
-        
-        // Call Imagen API
-        const response = await fetch('/api/generate-images', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ prompt, apiKey: userApiKey }),
-        });
-
-
-        const data = await response.json();
-
-        if (data.success) {
-          const completedGeneration: ImageGeneration = {
-            id: loadingGeneration.id,
-            prompt: loadingGeneration.prompt,
-            images: data.images.map((img: { url: string; imageBytes: string }) => ({
-              url: img.url,
-              imageBytes: img.imageBytes
-            })),
-            timestamp: loadingGeneration.timestamp,
-            isLoading: false
-          };
-
-          setGenerations(prev => prev.map(gen => 
-            gen.id === loadingGeneration.id ? completedGeneration : gen
-          ));
-        } else {
-          console.error('❌ Image generation failed:', {
-            error: data.error,
-            details: data.details,
-            fullResponse: data
+        if (providerSettings.provider === 'google') {
+          // Google AI (Gemini) generation logic
+          
+          // If both prompt and imageBytes are provided, use improve-image API
+          console.log('🔍 Checking routing conditions:', {
+            hasImageBytes: !!imageBytes,
+            hasPromptTrimmed: !!prompt.trim(),
+            willRouteToImprove: !!(imageBytes && prompt.trim())
           });
-          throw new Error(data.error || 'Image generation failed');
+          
+          if (imageBytes && prompt.trim()) {
+            console.log('🎨 Routing to improve-image API for image+text generation with:', {
+              prompt,
+              hasApiKey: !!userApiKey,
+              imageBytesLength: imageBytes?.length
+            });
+
+            const response = await fetch('/api/improve-image', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ 
+                originalPrompt: "uploaded image",
+                improvementPrompt: prompt,
+                imageBytes: imageBytes,
+                apiKey: userApiKey
+              }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              const completedGeneration: ImageGeneration = {
+                id: loadingGeneration.id,
+                prompt: data.enhancedPrompt || loadingGeneration.prompt,
+                images: data.images.map((img: { url: string; imageBytes: string }) => ({
+                  url: img.url,
+                  imageBytes: img.imageBytes
+                })),
+                timestamp: loadingGeneration.timestamp,
+                isLoading: false
+              };
+
+              setGenerations(prev => prev.map(gen => 
+                gen.id === loadingGeneration.id ? completedGeneration : gen
+              ));
+            } else {
+              console.error('❌ Image improvement failed:', {
+                error: data.error,
+                details: data.details,
+                fullResponse: data
+              });
+              throw new Error(data.error || 'Image improvement failed');
+            }
+          } else {
+            // Call Gemini API for text-only generation
+            console.log('🚀 Making API call to /api/generate-images with:', {
+              prompt,
+              hasApiKey: !!userApiKey,
+              hasImageBytes: !!imageBytes,
+              imageBytesLength: imageBytes?.length
+            });
+
+            const response = await fetch('/api/generate-images', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ prompt, apiKey: userApiKey, imageBytes }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              const completedGeneration: ImageGeneration = {
+                id: loadingGeneration.id,
+                prompt: loadingGeneration.prompt,
+                images: data.images.map((img: { url: string; imageBytes: string }) => ({
+                  url: img.url,
+                  imageBytes: img.imageBytes
+                })),
+                timestamp: loadingGeneration.timestamp,
+                isLoading: false
+              };
+
+              setGenerations(prev => prev.map(gen => 
+                gen.id === loadingGeneration.id ? completedGeneration : gen
+              ));
+            } else {
+              console.error('❌ Image generation failed:', {
+                error: data.error,
+                details: data.details,
+                fullResponse: data
+              });
+              throw new Error(data.error || 'Image generation failed');
+            }
+          }
+        } else {
+          // FAL.ai FLUX generation logic
+          console.log('🚀 Making API call to /api/generate-images/fal with:', {
+            prompt,
+            hasApiKey: !!userApiKey,
+            hasImageBytes: !!imageBytes,
+            model: providerSettings.fluxModel,
+            imageBytesLength: imageBytes?.length
+          });
+
+          const response = await fetch('/api/generate-images/fal', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+              prompt, 
+              apiKey: userApiKey, 
+              imageBytes,
+              model: providerSettings.fluxModel,
+              numImages: 4
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            const completedGeneration: ImageGeneration = {
+              id: loadingGeneration.id,
+              prompt: loadingGeneration.prompt,
+              images: data.images.map((img: { url: string; imageBytes: string }) => ({
+                url: img.url,
+                imageBytes: img.imageBytes
+              })),
+              timestamp: loadingGeneration.timestamp,
+              isLoading: false
+            };
+
+            setGenerations(prev => prev.map(gen => 
+              gen.id === loadingGeneration.id ? completedGeneration : gen
+            ));
+          } else {
+            console.error('❌ FAL.ai image generation failed:', {
+              error: data.error,
+              details: data.details,
+              fullResponse: data
+            });
+            throw new Error(data.error || 'FAL.ai image generation failed');
+          }
         }
       } else {
         // Call Veo 3 API for text-to-video
@@ -255,9 +409,9 @@ export function ContentGrid({
         alert(`Generation failed: ${errorMessage}`);
       }
     }
-  };
+  }, [providerSettings]);
 
-  const handleImageToVideo = async (imageUrl: string, imageBytes: string, prompt: string) => {
+  const handleImageToVideo = useCallback(async (imageUrl: string, imageBytes: string, prompt: string) => {
     // Get user's API key from localStorage
     const userApiKey = localStorage.getItem("gemini_api_key");
     
@@ -317,7 +471,7 @@ export function ContentGrid({
         alert(`Video conversion failed: ${errorMessage}`);
       }
     }
-  };
+  }, []);
 
   const handleOpenImproveModal = (imageUrl: string, imageBytes: string, originalPrompt: string) => {
     setImproveImageModal({
@@ -412,7 +566,7 @@ export function ContentGrid({
     if (onImageToVideo) {
       onImageToVideo(handleImageToVideo);
     }
-  }, [onNewGeneration, onImageToVideo]);
+  }, [onNewGeneration, onImageToVideo, handleNewGeneration, handleImageToVideo]);
 
   return (
     <>

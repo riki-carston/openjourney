@@ -5,6 +5,14 @@ export async function POST(request: NextRequest) {
   try {
     const { prompt, apiKey: userApiKey, imageBytes } = await request.json();
 
+    console.log('🎯 API /generate-images received:', {
+      prompt,
+      hasApiKey: !!userApiKey,
+      hasImageBytes: !!imageBytes,
+      imageBytesLength: imageBytes?.length,
+      imageBytesPreview: imageBytes ? imageBytes.substring(0, 50) + '...' : 'none'
+    });
+
     if (!prompt) {
       console.error('❌ Missing prompt');
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
@@ -28,13 +36,18 @@ export async function POST(request: NextRequest) {
         // Prepare content parts based on whether we have an input image
         const contentParts = [{ text: prompt }];
         if (imageBytes) {
+          console.log(`🖼️ Adding image data to request ${index + 1}, imageBytes length:`, imageBytes.length);
           contentParts.push({
             inlineData: {
               mimeType: "image/png",
               data: imageBytes
             }
           });
+        } else {
+          console.log(`📝 Text-only generation for request ${index + 1}`);
         }
+
+        console.log(`🚀 Sending request ${index + 1} to Gemini with ${contentParts.length} parts`);
 
         const response = await ai.models.generateContent({
           model: "gemini-2.5-flash-image-preview",
