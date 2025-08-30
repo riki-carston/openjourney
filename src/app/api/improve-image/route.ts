@@ -27,39 +27,60 @@ export async function POST(request: NextRequest) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Combine the original prompt with improvement instructions
-    const enhancedPrompt = `${originalPrompt}. Please improve this image by: ${improvementPrompt}`;
+    // Create the improvement prompt for image-to-image generation
+    const enhancedPrompt = `Please improve this image by: ${improvementPrompt}`;
 
-    console.log('🎨 Improving image with prompt:', enhancedPrompt);
+    // Generate 4 images using Gemini 2.5 Flash Image model with image input
+    const imagePromises = Array.from({ length: 4 }, async (_, index) => {
+      try {
+        const response = await ai.models.generateContent({
+          model: "gemini-2.5-flash-image-preview",
+          contents: [
+            {
+              parts: [
+                { text: enhancedPrompt },
+                { 
+                  inlineData: { 
+                    mimeType: "image/png", 
+                    data: imageBytes 
+                  }
+                }
+              ]
+            }
+          ]
+        });
 
-    const requestConfig = {
-      model: 'imagen-4.0-generate-preview-06-06',
-      prompt: enhancedPrompt,
-      config: {
-        numberOfImages: 4,
-        // Note: We're using text-to-image generation rather than image-to-image
-        // as the current Google GenAI SDK may not support image-to-image yet
-        // The prompt enhancement approach should still produce improved variations
-      },
-    };
-
-    const response = await ai.models.generateImages(requestConfig);
-
-    // Convert image bytes to base64 data URLs for frontend display
-    const images = (response.generatedImages || []).map((generatedImage, index) => {
-      const imageData = generatedImage.image?.imageBytes;
-      if (!imageData) {
-        console.warn(`⚠️  No image bytes for improved image ${index + 1}`);
+        // Extract image data from the response
+        const candidates = response.candidates || [];
+        for (const candidate of candidates) {
+          if (candidate.content?.parts) {
+            for (const part of candidate.content.parts) {
+              if (part.inlineData?.data) {
+                const generatedImageBytes = part.inlineData.data;
+                const mimeType = part.inlineData.mimeType || 'image/png';
+                const base64 = `data:${mimeType};base64,${generatedImageBytes}`;
+                
+                return {
+                  id: `improved-${Date.now()}-${index}`,
+                  url: base64,
+                  imageBytes: generatedImageBytes
+                };
+              }
+            }
+          }
+        }
+        
+        console.warn(`⚠️  No image data found in response for improved image ${index + 1}`);
+        return null;
+      } catch (error) {
+        console.warn(`⚠️  Failed to generate improved image ${index + 1}:`, error);
         return null;
       }
-      
-      const base64 = `data:image/png;base64,${imageData}`;
-      return {
-        id: `improved-${Date.now()}-${index}`,
-        url: base64,
-        imageBytes: imageData
-      };
-    }).filter(Boolean);
+    });
+    
+    // Wait for all image improvement requests to complete
+    const generatedImages = await Promise.all(imagePromises);
+    const images = generatedImages.filter(Boolean);
 
     return NextResponse.json({ 
       success: true, 

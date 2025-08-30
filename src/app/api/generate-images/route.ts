@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, apiKey: userApiKey } = await request.json();
+    const { prompt, apiKey: userApiKey, imageBytes } = await request.json();
 
     if (!prompt) {
       console.error('❌ Missing prompt');
@@ -22,12 +22,23 @@ export async function POST(request: NextRequest) {
     const ai = new GoogleGenAI({ apiKey });
 
     // Generate 4 images using Gemini 2.5 Flash Image model
-    // Gemini typically generates one image per request, so we make multiple parallel requests
+    // Support both text-to-image and image-to-image generation
     const imagePromises = Array.from({ length: 4 }, async (_, index) => {
       try {
+        // Prepare content parts based on whether we have an input image
+        const contentParts = [{ text: prompt }];
+        if (imageBytes) {
+          contentParts.push({
+            inlineData: {
+              mimeType: "image/png",
+              data: imageBytes
+            }
+          });
+        }
+
         const response = await ai.models.generateContent({
           model: "gemini-2.5-flash-image-preview",
-          contents: prompt,
+          contents: [{ parts: contentParts }],
         });
 
         // Extract image data from the response
