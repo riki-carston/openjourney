@@ -257,6 +257,7 @@ export function FocusedMediaView({
                 </Button>
               )}
 
+{/* Video generation temporarily hidden
               {currentItem.type === 'image' && onImageToVideo && (
                 <Button
                   onClick={() => {
@@ -268,6 +269,7 @@ export function FocusedMediaView({
                   Animate with Veo 2
                 </Button>
               )}
+              */}
             </div>
           </div>
 
@@ -462,6 +464,7 @@ export function FocusedMediaView({
                     </Button>
                   )}
 
+{/* Video generation temporarily hidden
                   {currentItem.type === 'image' && onImageToVideo && (
                     <Button
                       onClick={() => {
@@ -473,6 +476,7 @@ export function FocusedMediaView({
                       Animate with Veo 2
                     </Button>
                   )}
+                  */}
                 </div>
               </div>
 

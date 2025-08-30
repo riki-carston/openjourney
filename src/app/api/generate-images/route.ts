@@ -21,32 +21,46 @@ export async function POST(request: NextRequest) {
     }
     const ai = new GoogleGenAI({ apiKey });
 
-    const requestConfig = {
-      model: 'imagen-4.0-generate-preview-06-06',
-      prompt: prompt,
-      config: {
-        numberOfImages: 4,
-      },
-    };
+    // Generate 4 images using Gemini 2.5 Flash Image model
+    // Gemini typically generates one image per request, so we make multiple parallel requests
+    const imagePromises = Array.from({ length: 4 }, async (_, index) => {
+      try {
+        const response = await ai.models.generateContent({
+          model: "gemini-2.5-flash-image-preview",
+          contents: prompt,
+        });
 
-    const response = await ai.models.generateImages(requestConfig);
-
-    // Convert image bytes to base64 data URLs for frontend display
-    const images = (response.generatedImages || []).map((generatedImage, index) => {
-      
-      const imageBytes = generatedImage.image?.imageBytes;
-      if (!imageBytes) {
-        console.warn(`⚠️  No image bytes for image ${index + 1}`);
+        // Extract image data from the response
+        const candidates = response.candidates || [];
+        for (const candidate of candidates) {
+          if (candidate.content?.parts) {
+            for (const part of candidate.content.parts) {
+              if (part.inlineData?.data) {
+                const imageBytes = part.inlineData.data;
+                const mimeType = part.inlineData.mimeType || 'image/png';
+                const base64 = `data:${mimeType};base64,${imageBytes}`;
+                
+                return {
+                  id: `${Date.now()}-${index}`,
+                  url: base64,
+                  imageBytes: imageBytes
+                };
+              }
+            }
+          }
+        }
+        
+        console.warn(`⚠️  No image data found in response for image ${index + 1}`);
+        return null;
+      } catch (error) {
+        console.warn(`⚠️  Failed to generate image ${index + 1}:`, error);
         return null;
       }
-      
-      const base64 = `data:image/png;base64,${imageBytes}`;
-      return {
-        id: `${Date.now()}-${index}`,
-        url: base64,
-        imageBytes: imageBytes
-      };
-    }).filter(Boolean);
+    });
+    
+    // Wait for all image generation requests to complete
+    const generatedImages = await Promise.all(imagePromises);
+    const images = generatedImages.filter(Boolean);
 
     return NextResponse.json({ 
       success: true, 

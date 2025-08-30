@@ -229,6 +229,7 @@ export function ImageGrid({ generation, onImageToVideo, onViewFullscreen, onImag
                               )}
                             </Tooltip>
                           </TooltipProvider>
+{/* Animate (video from image) temporarily hidden
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -261,6 +262,7 @@ export function ImageGrid({ generation, onImageToVideo, onViewFullscreen, onImag
                               )}
                             </Tooltip>
                           </TooltipProvider>
+                          */}
                         </div>
                       </div>
                     </motion.div>

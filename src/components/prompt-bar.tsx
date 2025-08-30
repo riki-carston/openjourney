@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ImageIcon, VideoIcon } from "lucide-react";
+import { ImageIcon } from "lucide-react";
 import { SettingsDropdown } from "@/components/settings-dropdown";
 import Image from "next/image";
 
@@ -79,6 +79,7 @@ export function PromptBar({ onGenerate }: PromptBarProps) {
                   <ImageIcon className="w-4 h-4 mr-1" />
                   Image
                 </Button>
+{/* Video generation temporarily hidden
                 <Button
                   size="sm"
                   onClick={() => handleGenerate("video")}
@@ -88,6 +89,7 @@ export function PromptBar({ onGenerate }: PromptBarProps) {
                   <VideoIcon className="w-4 h-4 mr-1" />
                   Video
                 </Button>
+                */}
                 {/*
                 <SettingsDropdown />
                 */}
@@ -106,6 +108,7 @@ export function PromptBar({ onGenerate }: PromptBarProps) {
               <ImageIcon className="w-4 h-4 mr-2" />
               Image
             </Button>
+{/* Video generation temporarily hidden
             <Button
               onClick={() => handleGenerate("video")}
               disabled={!prompt.trim() || isGenerating}
@@ -114,6 +117,7 @@ export function PromptBar({ onGenerate }: PromptBarProps) {
               <VideoIcon className="w-4 h-4 mr-2" />
               Video
             </Button>
+            */}
             <SettingsDropdown />
           </div>
 
